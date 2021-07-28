@@ -1,29 +1,35 @@
 import json
 import os
 import asyncio
+import time
 
-from typing import Hashable
+from typing import Hashable, Optional
 from pathlib import Path
-from datetime import datetime, timedelta
+from collections import OrderedDict
 
 BASE_DIR = Path(__file__).resolve().parent
+TTL = Optional[int]
 
 
 class MemoryCache:
 
+    _cache: OrderedDict
+    _ttl_data: OrderedDict
+
     def __new__(cls):
         if not hasattr(cls, 'instance'):
-            cls.instance = super(MemoryCache, cls).__new__(cls)
-        return cls.instance
+            cls._instance = super(MemoryCache, cls).__new__(cls)
+        
+        return cls._instance
     
     def __init__(self) -> None:
         if os.path.exists(BASE_DIR / 'data_file.json'):
             with open(BASE_DIR / 'data_file.json', 'r') as data_file:
-                self._cache = json.load(data_file)         
+                self._cache = OrderedDict(json.load(data_file))         
         else:
-            self._cache = dict()
+            self._cache = OrderedDict()
         
-        self._ttl_data = dict()
+        self._ttl_data = OrderedDict()
     
     async def get(self, key: Hashable) -> str:
         if len(key) == 0:
@@ -31,7 +37,7 @@ class MemoryCache:
         
         return self._cache.get(key)
     
-    async def set(self, key: Hashable, value: str, ex: int = None) -> str:
+    async def set(self, key: Hashable, value: str, ex: TTL) -> str:
         if len(key) == 0 or len(value) == 0:
             return "ERR wrong number of arguments for 'set' command"
         
@@ -40,7 +46,7 @@ class MemoryCache:
         if None != ex:
             self._ttl_data[key] = ex
             loop = asyncio.get_event_loop()
-            loop.run_in_executor(None, self._time_to_live, key, ex)
+            loop.run_in_executor(None, self._expire_times, key, ex)
 
         return 'OK'
     
@@ -52,9 +58,10 @@ class MemoryCache:
         except KeyError:
             return 0
 
-    async def ttl(self, key: str) -> int:
+    async def ttl(self, key: Hashable) -> int:
         try:
             return self._ttl_data[key]
+        
         except KeyError:
             return -2
 
@@ -64,15 +71,12 @@ class MemoryCache:
         
         return 'OK'
     
-    def _time_to_live(self, key: Hashable, ex: int) -> None:
-        time_of_delete = datetime.now() + timedelta(seconds=ex)
+    def _expire_times(self, key: Hashable, ex: TTL) -> None:
+        time_of_delete = time.time() + ex
 
-        while True:
-            if time_of_delete.second > datetime.now().second:
-                seconds = time_of_delete.second - datetime.now().second
-                if self._ttl_data[key] != seconds:
-                    self._ttl_data[key] = seconds
-            else:
-                del self._cache[key]
-                del self._ttl_data[key]
-                break
+        while time_of_delete > time.time():
+            seconds = round(time_of_delete - time.time())
+            self._ttl_data[key] = seconds
+
+        del self._cache[key]
+        del self._ttl_data[key]
