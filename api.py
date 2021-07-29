@@ -1,4 +1,4 @@
-from schemas import GET, SET, DEL, TTL
+from schemas import GET, SET, DEL, TTL, KEYS
 from fastapi import FastAPI, Response
 from memory_cache import MemoryCache
 
@@ -8,7 +8,9 @@ cache = MemoryCache()
 
 @app.post("/GET")
 async def get(GET: GET) -> Response:
-    return await cache.get(GET.dict().get('key'))
+    return await cache.get(
+        GET.dict().get('key')
+    )
 
 
 @app.post("/SET")
@@ -26,6 +28,7 @@ async def delete(DEL: DEL) -> Response:
         key=DEL.dict().get('key')
     )
 
+
 @app.post('/SAVE')
 async def save() -> Response:
     return await cache.save()
@@ -35,4 +38,11 @@ async def save() -> Response:
 async def ttl(TTL: TTL) -> Response:
     return await cache.ttl(
         key=TTL.dict().get('key')
+    )
+
+
+@app.post('/KEYS')
+async def keys(KEYS: KEYS) -> Response:
+    return await cache.keys(
+        pattern=KEYS.dict().get('pattern')
     )

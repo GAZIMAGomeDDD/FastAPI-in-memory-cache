@@ -9,7 +9,6 @@ class GET(BaseModel):
 
 class SET(GET):
 
-    key: str
     value: str
     ex: Optional[int] = None
 
@@ -20,3 +19,8 @@ class TTL(GET):
 
 class DEL(GET):
     pass
+
+
+class KEYS(BaseModel):
+
+    pattern: str

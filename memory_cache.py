@@ -1,9 +1,11 @@
-import json
 import os
 import asyncio
 import time
+import pickle
 
-from typing import Hashable, Optional
+from concurrent.futures import ThreadPoolExecutor
+from re import search
+from typing import Hashable, Optional, List
 from pathlib import Path
 from collections import OrderedDict
 
@@ -15,21 +17,17 @@ class MemoryCache:
 
     _cache: OrderedDict
     _ttl_data: OrderedDict
-
-    def __new__(cls):
-        if not hasattr(cls, 'instance'):
-            cls._instance = super(MemoryCache, cls).__new__(cls)
-        
-        return cls._instance
     
     def __init__(self) -> None:
-        if os.path.exists(BASE_DIR / 'data_file.json'):
-            with open(BASE_DIR / 'data_file.json', 'r') as data_file:
-                self._cache = OrderedDict(json.load(data_file))         
+        if os.path.exists(BASE_DIR / 'dump'):
+            with open(BASE_DIR / 'dump', 'rb') as dump:
+                self._cache = OrderedDict(pickle.load(dump))
         else:
             self._cache = OrderedDict()
         
         self._ttl_data = OrderedDict()
+        self._io_pool_exc = ThreadPoolExecutor()
+        self._loop = asyncio.get_event_loop()
     
     async def get(self, key: Hashable) -> str:
         if len(key) == 0:
@@ -44,9 +42,11 @@ class MemoryCache:
         self._cache[key] = value
 
         if None != ex:
+            if ex < 1:
+                return "ERR wrong number of arguments for 'set' command"
+
             self._ttl_data[key] = ex
-            loop = asyncio.get_event_loop()
-            loop.run_in_executor(None, self._expire_times, key, ex)
+            self._loop.run_in_executor(self._io_pool_exc, self._expire_times, key, ex)
 
         return 'OK'
     
@@ -66,17 +66,24 @@ class MemoryCache:
             return -2
 
     async def save(self) -> str:
-        with open(BASE_DIR / 'data_file.json', 'w') as data_file:
-            json.dump(self._cache, data_file, indent=4)
+        self._loop.run_in_executor(self._io_pool_exc, self._save)
         
         return 'OK'
+
+    async def keys(self, pattern: str) -> List[Hashable]:
+        return [key for key in self._cache.keys() if search(pattern, key) != None]
     
     def _expire_times(self, key: Hashable, ex: TTL) -> None:
-        time_of_delete = time.time() + ex
+        timer = time.time() + ex
 
-        while time_of_delete > time.time():
-            seconds = round(time_of_delete - time.time())
+        while timer > time.time():
+            time.sleep(1)
+            seconds = round(timer - time.time())
             self._ttl_data[key] = seconds
 
         del self._cache[key]
         del self._ttl_data[key]
+
+    def _save(self) -> None:
+        with open(BASE_DIR / 'dump', 'wb') as dump:
+            pickle.dump(self._cache, dump)
