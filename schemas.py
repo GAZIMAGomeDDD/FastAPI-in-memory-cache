@@ -37,7 +37,6 @@ class HSETList(BaseModel):
 
     key: str
     value: str
-    token: str
 
 
 class HSET(BaseModel):

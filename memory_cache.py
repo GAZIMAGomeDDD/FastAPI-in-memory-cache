@@ -19,15 +19,18 @@ class MemoryCache:
         if os.path.exists(BASE_DIR / 'dump'):
             with open(BASE_DIR / 'dump', 'rb') as dump:
                 self._cache = pickle.load(dump)
-                self._hash_data = self._cache['hash_data']
-                self._list_data = self._cache['list_data']
-                del self._cache['hash_data']
-                del self._cache['list_data']
         else:
             self._cache = dict()
+        
+        try:
+            self._hash_data = self._cache['hash_data']
+            self._list_data = self._cache['list_data']
+            del self._cache['hash_data']
+            del self._cache['list_data']
+        except KeyError:
             self._hash_data = dict()
             self._list_data = dict()
-        
+
         self._ttl_data = dict()
         self._io_pool_exc = ThreadPoolExecutor()
         self._loop = asyncio.get_event_loop()
@@ -87,7 +90,7 @@ class MemoryCache:
             return -2
 
     async def save(self) -> str:
-        self._loop.run_in_executor(
+        await self._loop.run_in_executor(
             executor=self._io_pool_exc, 
             func=self._save
         )

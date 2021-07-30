@@ -24,7 +24,7 @@ class UsersData:
             return 'Login already exists'
         
         self._users_data[login] = self._get_password_hash(password)
-        asyncio.get_event_loop().run_in_executor(
+        await asyncio.get_event_loop().run_in_executor(
             executor=None, 
             func=self._save
         )
@@ -45,8 +45,7 @@ class UsersData:
     
     def check_token(self, token: str) -> bool:
         try:
-            self._tokens[token]
-            return True
+            return self._tokens[token]
         except KeyError:
             return False
 
