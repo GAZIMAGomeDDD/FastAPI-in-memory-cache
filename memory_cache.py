@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from re import search
 from typing import Dict, Optional, List, Union
 from pathlib import Path
+from collections import deque
 
 BASE_DIR = Path(__file__).resolve().parent
 TTL = Optional[int]
@@ -18,23 +19,31 @@ class MemoryCache:
         if os.path.exists(BASE_DIR / 'dump'):
             with open(BASE_DIR / 'dump', 'rb') as dump:
                 self._cache = pickle.load(dump)
+                self._hash_data = self._cache['hash_data']
+                self._list_data = self._cache['list_data']
+                del self._cache['hash_data']
+                del self._cache['list_data']
         else:
             self._cache = dict()
+            self._hash_data = dict()
+            self._list_data = dict()
         
         self._ttl_data = dict()
-        self._hash_data = dict()
         self._io_pool_exc = ThreadPoolExecutor()
         self._loop = asyncio.get_event_loop()
     
     async def get(self, key: str) -> str:
-        if self._hash_data.get(key):
+        if self._hash_data.get(key) or self._list_data.get(key):
             return 'WRONGTYPE Operation against a key holding the wrong kind of value'
-        
+
         return self._cache.get(key)
     
     async def set(self, key: str, value: str, ttl: TTL) -> str:
         if self._hash_data.get(key):
             del self._hash_data[key]
+        
+        if self._list_data.get(key):
+            del self._list_data[key]
 
         if self._ttl_data.get(key) != None:
             self._ttl_data[key]['ttl_stop'] = True
@@ -58,14 +67,15 @@ class MemoryCache:
             if self._cache.get(key):
                 count += 1
 
-            if self._ttl_data.get(key) != None:
+            if self._ttl_data.get(key, False):
                 self._ttl_data[key]['ttl_stop'] = True
-
-            try:
-                del self._cache[key]
-                del self._hash_data[key]
-            except KeyError:
-                pass
+            else:
+                try:
+                    del self._cache[key]
+                    del self._hash_data[key]
+                    del self._list_data[key]
+                except KeyError:
+                    pass
                 
         return count
 
@@ -114,8 +124,57 @@ class MemoryCache:
             return 'WRONGTYPE Operation against a key holding the wrong kind of value'
         
         return self._cache[key][field]
+    
+    async def rpush(self, key: str, elements: List[str]) -> Union[str, int]:
+        if not self._list_data.get(key, False):
+            if self._cache.get(key):
+                return 'WRONGTYPE Operation against a key holding the wrong kind of value'
 
+            self._cache[key] = deque(elements)
+            self._list_data[key] = True
+        else:
+            self._cache[key] = deque(self._cache[key])
+            self._cache[key].extend(elements)
+                
+        return len(self._cache[key])
+    
+    async def lpush(self, key: str, elements: List[str]) -> Union[str, int]:
+        if not self._list_data.get(key, False):
+            if self._cache.get(key):
+                return 'WRONGTYPE Operation against a key holding the wrong kind of value'
 
+            self._cache[key] = deque(elements)
+            self._list_data[key] = True
+        else:
+            self._cache[key] = deque(self._cache[key])
+            self._cache[key].extendleft(elements)
+                
+        return len(self._cache[key])
+    
+    async def lset(self, key: str, index: int, element: str) -> str:
+        if not self._list_data.get(key, False):
+            if not self._cache.get(key, False):
+                return 'WRONGTYPE Operation against a key holding the wrong kind of value'
+        
+        try:
+            self._cache[key][index] = element
+        except IndexError or KeyError:
+            return 'ERR index out of range'
+        
+        return 'OK'
+    
+    async def lget(self, key: str, index: int) -> Optional[str]:
+        if not self._list_data.get(key, False):
+            if not self._cache.get(key, False):
+                return None
+
+            return 'WRONGTYPE Operation against a key holding the wrong kind of value'
+        
+        try:
+            return self._cache[key][index]
+        except IndexError or KeyError:
+            return None
+        
     def _expire_times(self, key: str, ttl: TTL) -> None:
         timer = time.time() + ttl
 
@@ -137,4 +196,5 @@ class MemoryCache:
 
     def _save(self) -> None:
         with open(BASE_DIR / 'dump', 'wb') as dump:
+            self._cache['hash_data'] = self._hash_data
             pickle.dump(self._cache, dump)

@@ -1,4 +1,4 @@
-from schemas import GET, HGET, SET, DEL, TTL, KEYS, HSET
+from schemas import GET, HGET, LGET, LSET, RLPUSH, SET, DEL, TTL, KEYS, HSET
 from fastapi import FastAPI, Response
 from memory_cache import MemoryCache
 
@@ -61,4 +61,37 @@ async def hget(HGET: HGET) -> Response:
     return await cache.hget(
         key=HGET.dict().get('key'),
         field=HGET.dict().get('field')
+    )
+
+
+@app.post('/RPUSH')
+async def rpush(RPUSH: RLPUSH) -> Response:
+    return await cache.rpush(
+        key=RPUSH.dict().get('key'),
+        elements=RPUSH.dict().get('elements')
+    )
+
+
+@app.post('/LPUSH')
+async def lpush(LPUSH: RLPUSH) -> Response:
+    return await cache.lpush(
+        key=LPUSH.dict().get('key'),
+        elements=LPUSH.dict().get('elements')
+    )
+
+
+@app.post('/LSET')
+async def lset(LSET: LSET) -> Response:
+    return await cache.lset(
+        key=LSET.dict().get('key'),
+        index=LSET.dict().get('index'),
+        element=LSET.dict().get('element')
+    )
+
+
+@app.post('/LGET')
+async def lget(LGET: LGET) -> Response:
+    return await cache.lget(
+        key=LGET.dict().get('key'),
+        index=LGET.dict().get('index')
     )

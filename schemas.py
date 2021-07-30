@@ -1,6 +1,5 @@
-from memory_cache import BASE_DIR
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional
 
 
 class GET(BaseModel):
@@ -45,3 +44,19 @@ class HGET(BaseModel):
 
     key: str
     field: str
+
+
+class RLPUSH(BaseModel):
+    key: str
+    elements: List[str]
+
+
+class LSET(BaseModel):
+    key: str
+    index: int
+    element: str
+
+
+class LGET(BaseModel):
+    key: str
+    index: int
