@@ -95,7 +95,6 @@ class MemoryCache:
         return 'OK'
 
     async def keys(self, pattern: str) -> List[str]:
-        
         return [key for key in self._cache.keys() if search(pattern, key) != None]
        
     async def hset(self, key: str, fields: List[Dict]) -> Union[str, int]:
@@ -179,7 +178,6 @@ class MemoryCache:
         timer = time.time() + ttl
 
         while timer > time.time():
-
             if self._ttl_data[key]['ttl_stop']:
                 del self._cache[key]
                 del self._ttl_data[key]
