@@ -24,11 +24,14 @@ class MemoryCache:
         
         try:
             self._hash_data = self._cache['hash_data']
-            self._list_data = self._cache['list_data']
-            del self._cache['hash_data']
-            del self._cache['list_data']
+            del self._cache['hash_data']    
         except KeyError:
             self._hash_data = dict()
+        
+        try:    
+            self._list_data = self._cache['list_data']            
+            del self._cache['list_data']
+        except KeyError:
             self._list_data = dict()
 
         self._ttl_data = dict()
@@ -114,7 +117,7 @@ class MemoryCache:
             if not self._cache[key].get(field['key']):
                 count += 1
             
-            self._cache[key].update({field['key']: field['key']})
+            self._cache[key].update({field['key']: field['value']})
                 
         return count
 
@@ -125,8 +128,12 @@ class MemoryCache:
 
             return 'WRONGTYPE Operation against a key holding the wrong kind of value'
         
-        return self._cache[key][field]
+        try:
+            return self._cache[key][field]
+        except KeyError:
+            return None
     
+
     async def rpush(self, key: str, elements: List[str]) -> Union[str, int]:
         if not self._list_data.get(key, False):
             if self._cache.get(key):
@@ -155,12 +162,14 @@ class MemoryCache:
     
     async def lset(self, key: str, index: int, element: str) -> str:
         if not self._list_data.get(key, False):
-            if not self._cache.get(key, False):
+            if self._cache.get(key):
                 return 'WRONGTYPE Operation against a key holding the wrong kind of value'
+            else:
+                return 'ERR no such key'
         
         try:
             self._cache[key][index] = element
-        except IndexError or KeyError:
+        except IndexError:
             return 'ERR index out of range'
         
         return 'OK'

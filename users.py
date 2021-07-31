@@ -24,10 +24,12 @@ class UsersData:
             return 'Login already exists'
         
         self._users_data[login] = self._get_password_hash(password)
+        
         await asyncio.get_event_loop().run_in_executor(
             executor=None, 
             func=self._save
         )
+        
         return 'OK'            
         
     async def auth(self, login: str, password: str) -> str:

@@ -1,7 +1,7 @@
 from users import UsersData
-from schemas import (Auth, GET, HGET, LGET, 
-                    LSET, RLPUSH, Register, SAVE, 
-                    SET, DEL, TTL, KEYS, HSET)
+from schemas import (Auth, GET, HGET, LGET,
+                     LSET, RLPUSH, Register, SAVE,
+                     SET, DEL, TTL, KEYS, HSET)
 from fastapi import FastAPI, Response
 from memory_cache import MemoryCache
 
@@ -26,7 +26,7 @@ async def set(SET: SET) -> Response:
         return 'Unauthorized'
 
     return await cache.set(
-        key=SET.dict().get('key'), 
+        key=SET.dict().get('key'),
         value=SET.dict().get('value'),
         ttl=SET.dict().get('ttl')
     )

@@ -25,6 +25,14 @@ docker-compose logs -f
 docker-compose down
 ```
 
+## Tests
+Запустить тесты:
+```bash
+docker-compose exec server pytest --cov=.
+```
+<details><summary><b>Изображение</b></summary>  <img src="./img/tests.png">
+</details>
+
 ### Методы
 |Метод HTTP|URL|Действие|
 |---|---|---|
@@ -113,6 +121,20 @@ response: 1
 $ curl -X POST "http://127.0.0.1:8000/HSET" -H "accept: application/json" -H  "Content-Type: application/json" -d '{"key": "family", "fields": [{"key": "son", "value": "Anthony"}], "token": "0k1KyNsiSl"}'
 
 response: 0
+
+```
+
+#### HGET
+```
+$ curl -X POST "http://127.0.0.1:8000/HGET" -H "accept: application/json" -H  "Content-Type: application/json" -d '{"key": "family", "field": "son", "token": "0k1KyNsiSl"}'
+
+response: "Anthony"
+
+```
+```
+$ curl -X POST "http://127.0.0.1:8000/HGET" -H "accept: application/json" -H  "Content-Type: application/json" -d '{"key": "family", "field": "grandma", "token": "0k1KyNsiSl"}'
+
+response: null
 
 ```
 
